@@ -1,0 +1,52 @@
+---
+title: 'Financial Simulation: Finding Tickers'
+author: 'Majeed Simaan'
+date: 'March 28th, 2018'
+output:
+  html_notebook: default
+  pdf_document: default
+fig_width: 20
+---
+## Introduction
+In this vignette, I provide a brief description on how to identify most actively traded stocks on a daily basis. A starting point is the Wall Street Journal (WSJ) Market Data Center, which lists the top 100 NYSE most active stocks (in terms of total volume). The link can be found [**here**](http://www.wsj.com/mdc/public/page/2_3021-activnyse-actives.html). The key point is to figure out a way to extract the tickers of this list in an automated fashion. This article describes how to establish so.
+
+
+## Scraping HTML Tables
+To get started, let's get the `rvest` package that allows users to scrap HTML tables into data frames:
+```{r message=FALSE, warning=FALSE, eval=FALSE}
+install.packages("rvest")
+```
+After successfully installing the package, you can load the package
+```{r message=FALSE, warning=FALSE}
+library(rvest)
+```
+In particular, I will refer to three functions from the package. The first one is `read_html` that reads the HTML content of a given url. This serves as the first step to input the webpage content into R. The second function is `html_nodes` that allows users to extract nodes from the html content with respect to a specific keyword (table in our case). Finally, the third function outputs the nodes content into a `data.frame` object. The following commands establish these three steps:
+```{r message=FALSE, warning=FALSE}
+theurl <- "http://www.wsj.com/mdc/public/page/2_3021-activnyse-actives.html"
+file <- read_html(theurl)
+tables <- html_nodes(file, "table")
+length(tables) # check how many nodes with tables we identify
+
+# try extract each into a data.frame
+tables.list <- numeric()
+for (i in 1:length(tables)) { 
+  tables.list[i] <- list(try(html_table(tables[i], fill = TRUE),silent = T))
+}
+```
+Note that in total 6 tables have been identified. The next step is to figure out which one out of these six is the relevant one. By briefly browsing among the content of `table.list`, we note that the table of interest is the third one, such that 
+```{r message=FALSE, warning=FALSE}
+ds <- tables.list[[3]][[1]]
+head(ds)
+```
+We also note that the column names are put in the first row, whereas the tickers are located in the second column. Doing some adjustment, we have
+```{r message=FALSE, warning=FALSE}
+names(ds) <- ds[1,]
+ds <- ds[-1,]
+
+tics <- sapply(strsplit(ds[,2]," "),function(x) x[length(x)]) 
+tics <- gsub("\\(","",tics)
+tics <- gsub("\\)","",tics)
+head(tics,10) # top active
+```
+Finally, we can use the `tics` vector as an input for the `quantmod` package to download stock prices and options data from Yahoo Finance.
+
