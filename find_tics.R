@@ -12,8 +12,12 @@ get_tics <- function(theurl) {
     tables.list[i] <- list(try(html_table(tables[i], fill = TRUE),silent = T))
   }
 
-  # the table we are looking for is found here
-  ds <- tables.list[[3]][[1]]
+  # the table we are looking should have columns for volume and price: 
+  find.volume <- lapply(tables.list, function(x) grep("Volume",x,ignore.case = T)   )
+  find.price <- lapply(tables.list, function(x) grep("Price",x,ignore.case = T)   )
+  locate.table <- which.max(sapply(find.volume, length) + sapply(find.price, length) )
+  
+  ds <- tables.list[[locate.table]][[1]]
   names(ds) <- ds[1,]
   ds <- ds[-1,]
 
